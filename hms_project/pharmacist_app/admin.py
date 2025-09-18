@@ -4,18 +4,17 @@ Django admin configuration with comprehensive functionality
 """
 
 from django.contrib import admin
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, F
 from django.utils.html import format_html
 from django.urls import path
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from datetime import timedelta
 import csv
 
 from .models import *
-from .utils import generate_stock_alerts
-
+from .utils import generate_stock_alerts, process_medicine_dispensing
 
 @admin.register(MedicineCategory)
 class MedicineCategoryAdmin(admin.ModelAdmin):
@@ -42,7 +41,6 @@ class MedicineCategoryAdmin(admin.ModelAdmin):
         self.message_user(request, f'{count} categories deactivated.')
     deactivate_categories.short_description = 'Deactivate selected categories'
 
-
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
     list_display = ['name', 'contact_person', 'phone', 'email', 'supplies_count', 'is_active']
@@ -66,7 +64,6 @@ class SupplierAdmin(admin.ModelAdmin):
         count = obj.medicinestock_set.count()
         return format_html(f'<strong>{count}</strong>')
     supplies_count.short_description = 'Total Supplies'
-
 
 @admin.register(Medicine)
 class MedicineAdmin(admin.ModelAdmin):
@@ -151,7 +148,6 @@ class MedicineAdmin(admin.ModelAdmin):
         return response
     generate_stock_report.short_description = 'Export stock report (CSV)'
 
-
 @admin.register(MedicineStock)
 class MedicineStockAdmin(admin.ModelAdmin):
     list_display = [
@@ -210,7 +206,6 @@ class MedicineStockAdmin(admin.ModelAdmin):
         self.message_user(request, f'{count} stock batches marked as damaged.')
     mark_as_damaged.short_description = 'Mark selected batches as damaged'
 
-
 @admin.register(StockAlert)
 class StockAlertAdmin(admin.ModelAdmin):
     list_display = [
@@ -245,10 +240,10 @@ class StockAlertAdmin(admin.ModelAdmin):
         if result['success']:
             self.message_user(request, f"Generated {result['alerts_created']} new alerts.")
         else:
-            self.message_user(request, f"Error generating alerts: {result['error']}", level='ERROR')
+            self.message_user(request, f"Error generating alerts: {result.get('error', 'Unknown error')}", level='ERROR')
     generate_alerts.short_description = 'Generate stock alerts'
 
-
+# SINGLE PRESCRIPTION ADMIN (FIXED - NO DUPLICATES)
 @admin.register(Prescription)
 class PrescriptionAdmin(admin.ModelAdmin):
     list_display = [
@@ -280,8 +275,62 @@ class PrescriptionAdmin(admin.ModelAdmin):
         })
     )
     
-    inlines = []  # Could add PrescriptionItemInline here
+    # COMBINED ACTIONS (FIXED)
+    actions = ['generate_bills_for_prescriptions']
+    
+    def generate_bills_for_prescriptions(self, request, queryset):
+        """Custom admin action to generate bills"""
+        bills_created = 0
+        
+        for prescription in queryset:
+            if prescription.status == 'PENDING':
+                try:
+                    # Auto-dispense all items and generate bill
+                    for item in prescription.items.all():
+                        if item.remaining_quantity > 0:
+                            # Find available stock
+                            stock = MedicineStock.objects.filter(
+                                medicine=item.medicine,
+                                quantity_available__gte=item.remaining_quantity,
+                                is_damaged=False,
+                                expiry_date__gt=timezone.now().date()
+                            ).first()
+                            
+                            if stock:
+                                result = process_medicine_dispensing(
+                                    prescription=prescription,
+                                    dispense_data={
+                                        'prescription_item_id': item.id,
+                                        'quantity_to_dispense': item.remaining_quantity,
+                                        'batch_number': stock.batch_number
+                                    },
+                                    pharmacist=request.user
+                                )
+                                bills_created += 1
+                                
+                except Exception as e:
+                    self.message_user(request, f"Error generating bill for {prescription.prescription_code}: {str(e)}", level='ERROR')
+        
+        self.message_user(request, f"Successfully generated {bills_created} bills.")
+    
+    generate_bills_for_prescriptions.short_description = "Generate bills for selected prescriptions"
 
+@admin.register(PrescriptionItem)
+class PrescriptionItemAdmin(admin.ModelAdmin):
+    list_display = [
+        'prescription_code', 'medicine_name', 'quantity_prescribed',
+        'quantity_dispensed', 'remaining_quantity', 'unit_price'
+    ]
+    list_filter = ['prescription__status']
+    search_fields = ['prescription__prescription_code', 'medicine__medicine_name']
+    
+    def prescription_code(self, obj):
+        return obj.prescription.prescription_code
+    prescription_code.short_description = 'Prescription'
+    
+    def medicine_name(self, obj):
+        return obj.medicine.medicine_name
+    medicine_name.short_description = 'Medicine'
 
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):
@@ -319,59 +368,22 @@ class SaleAdmin(admin.ModelAdmin):
         })
     )
 
-
-# Custom admin views
-class PharmacyDashboard(admin.AdminSite):
-    site_header = 'Pharmacy Management System'
-    site_title = 'Pharmacy Admin'
-    index_title = 'Pharmacy Dashboard'
+@admin.register(SaleItem)
+class SaleItemAdmin(admin.ModelAdmin):
+    list_display = [
+        'sale_code', 'medicine_name', 'quantity',
+        'unit_price', 'subtotal', 'batch_number'
+    ]
+    search_fields = ['sale__sale_code', 'medicine__medicine_name']
     
-    def get_urls(self):
-        urls = super().get_urls()
-        custom_urls = [
-            path('dashboard/', self.admin_view(self.dashboard_view), name='pharmacy-dashboard'),
-            path('generate-alerts/', self.admin_view(self.generate_alerts_view), name='generate-alerts'),
-        ]
-        return custom_urls + urls
+    def sale_code(self, obj):
+        return obj.sale.sale_code
+    sale_code.short_description = 'Sale'
     
-    def dashboard_view(self, request):
-        """Custom dashboard view"""
-        context = {
-            'title': 'Pharmacy Dashboard',
-            'medicines_count': Medicine.objects.filter(is_active=True).count(),
-            'low_stock_count': Medicine.objects.filter(
-                is_active=True, 
-                total_quantity__lte=F('reorder_level')
-            ).count(),
-            'active_alerts': StockAlert.objects.filter(is_resolved=False).count(),
-            'today_sales': Sale.objects.filter(
-                sale_date__date=timezone.now().date()
-            ).count(),
-        }
-        return render(request, 'admin/pharmacy_dashboard.html', context)
+    def medicine_name(self, obj):
+        return obj.medicine.medicine_name
+    medicine_name.short_description = 'Medicine'
     
-    def generate_alerts_view(self, request):
-        """Generate stock alerts view"""
-        if request.method == 'POST':
-            result = generate_stock_alerts()
-            context = {
-                'title': 'Generate Stock Alerts',
-                'result': result
-            }
-        else:
-            context = {'title': 'Generate Stock Alerts'}
-        
-        return render(request, 'admin/generate_alerts.html', context)
-
-
-# Register custom admin site
-pharmacy_admin = PharmacyDashboard(name='pharmacy_admin')
-
-# Register all models with custom admin site
-pharmacy_admin.register(MedicineCategory, MedicineCategoryAdmin)
-pharmacy_admin.register(Supplier, SupplierAdmin)
-pharmacy_admin.register(Medicine, MedicineAdmin)
-pharmacy_admin.register(MedicineStock, MedicineStockAdmin)
-pharmacy_admin.register(StockAlert, StockAlertAdmin)
-pharmacy_admin.register(Prescription, PrescriptionAdmin)
-pharmacy_admin.register(Sale, SaleAdmin)
+    def batch_number(self, obj):
+        return obj.stock_batch.batch_number
+    batch_number.short_description = 'Batch'

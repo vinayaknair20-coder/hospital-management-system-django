@@ -15,7 +15,6 @@ from datetime import datetime, timedelta, date
 from decimal import Decimal, InvalidOperation
 import re
 
-
 # ===========================
 # CUSTOM VALIDATORS
 # ===========================
@@ -42,7 +41,6 @@ def validate_phone_number(value):
     
     return cleaned
 
-
 def validate_medicine_name(value):
     """Validates medicine name - minimum 3 characters as per PDF"""
     if not value or not str(value).strip():
@@ -64,7 +62,6 @@ def validate_medicine_name(value):
     
     return cleaned_name.title()
 
-
 def validate_generic_name(value):
     """Validates generic name"""
     if value and str(value).strip():
@@ -75,7 +72,6 @@ def validate_generic_name(value):
             raise ValidationError("Generic name cannot exceed 200 characters.")
         return cleaned.title()
     return value
-
 
 def validate_company_name(value):
     """Validates company/manufacturer name"""
@@ -92,7 +88,6 @@ def validate_company_name(value):
     
     return cleaned.title()
 
-
 def validate_positive_quantity(value):
     """Validates positive quantity values"""
     try:
@@ -105,7 +100,6 @@ def validate_positive_quantity(value):
     except (ValueError, TypeError):
         raise ValidationError("Quantity must be a valid number.")
 
-
 def validate_positive_price(value):
     """Validates positive price values"""
     try:
@@ -117,7 +111,6 @@ def validate_positive_price(value):
         return price
     except (InvalidOperation, ValueError, TypeError):
         raise ValidationError("Price must be a valid decimal number.")
-
 
 def validate_batch_number(value):
     """Validates batch/lot number format"""
@@ -138,7 +131,6 @@ def validate_batch_number(value):
     
     return cleaned.upper()
 
-
 def validate_expiry_date(value):
     """Validates medicine expiry date"""
     if not value:
@@ -158,7 +150,6 @@ def validate_expiry_date(value):
         raise ValidationError("Expiry date cannot be more than 10 years in the future.")
     
     return value
-
 
 # ===========================
 # MAIN MODELS
@@ -214,7 +205,6 @@ class MedicineCategory(models.Model):
     
     def __str__(self):
         return self.name
-
 
 class Supplier(models.Model):
     """Medicine suppliers/vendors"""
@@ -291,14 +281,8 @@ class Supplier(models.Model):
     def __str__(self):
         return f"{self.name} - {self.contact_person}"
 
-
 class Medicine(models.Model):
-    """
-    Core Medicine model based on PDF requirements:
-    - Medicine Name, Generic Name, Company Name, Quantity, Price
-    - Search by Medicine Code and Medicine Name
-    - Edit only Quantity and Price
-    """
+    """Core Medicine model based on PDF requirements"""
     
     # Auto-generated medicine code (as per PDF search requirement)
     medicine_code = models.CharField(
@@ -475,12 +459,8 @@ class Medicine(models.Model):
     def __str__(self):
         return f"{self.medicine_name} - {self.company_name}"
 
-
 class MedicineStock(models.Model):
-    """
-    Individual stock batches with expiry tracking
-    Links to Medicine model for inventory management
-    """
+    """Individual stock batches with expiry tracking"""
     
     medicine = models.ForeignKey(
         Medicine,
@@ -650,7 +630,6 @@ class MedicineStock(models.Model):
     def __str__(self):
         return f"{self.medicine.medicine_name} - Batch: {self.batch_number}"
 
-
 class StockAlert(models.Model):
     """Stock alerts for low stock, expiry, etc."""
     
@@ -721,7 +700,6 @@ class StockAlert(models.Model):
     
     def __str__(self):
         return f"{self.alert_type} - {self.medicine.medicine_name}"
-
 
 class Prescription(models.Model):
     """Patient prescriptions for medicine dispensing"""
@@ -815,7 +793,6 @@ class Prescription(models.Model):
     
     def __str__(self):
         return f"Prescription {self.prescription_code} - {self.patient_name}"
-
 
 class PrescriptionItem(models.Model):
     """Individual medicines in a prescription"""
@@ -913,7 +890,6 @@ class PrescriptionItem(models.Model):
     
     def __str__(self):
         return f"{self.medicine.medicine_name} x {self.quantity_prescribed}"
-
 
 class Sale(models.Model):
     """Sales transactions for medicine dispensing"""
@@ -1038,14 +1014,13 @@ class Sale(models.Model):
                 next_id = last_sale.id + 1
             else:
                 next_id = 1
-            self.sale_code = f"SALE{str(next_id).zfill(6)}"
+            self.sale_code = f"SAL{str(next_id).zfill(6)}"
         
         self.full_clean()
         super().save(*args, **kwargs)
     
     def __str__(self):
         return f"Sale {self.sale_code} - {self.customer_name} - ₹{self.total_amount}"
-
 
 class SaleItem(models.Model):
     """Individual items in a sale"""
