@@ -25,8 +25,12 @@ def validate_phone_number(value):
     if not value:
         raise ValidationError("Phone number is required.")
     
-    # Remove all non-digit characters
+    # Convert to string and remove all non-digit characters
     cleaned = re.sub(r'\D', '', str(value))
+    
+    # Handle international format (+91...)
+    if cleaned.startswith('91') and len(cleaned) == 12:
+        cleaned = cleaned[2:]  # Remove country code
     
     # Must be exactly 10 digits as per PDF requirements
     if len(cleaned) != 10:

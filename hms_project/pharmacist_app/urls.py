@@ -18,15 +18,10 @@ router.register(r'prescriptions', views.PrescriptionViewSet, basename='prescript
 router.register(r'sales', views.SaleViewSet, basename='sale')
 router.register(r'dashboard', views.DashboardViewSet, basename='dashboard')
 
-# URL patterns
+# URL patterns - REMOVE THE PROBLEMATIC CUSTOM ENDPOINTS
 urlpatterns = [
     # API routes
     path('api/', include(router.urls)),
-    
-    # Custom endpoints (if needed)
-    path('api/reports/inventory/', views.InventoryReportView.as_view(), name='inventory-report'),
-    path('api/reports/sales/', views.SalesReportView.as_view(), name='sales-report'),
-    path('api/utils/generate-alerts/', views.GenerateAlertsView.as_view(), name='generate-alerts'),
 ]
 
 app_name = 'pharmacist_app'

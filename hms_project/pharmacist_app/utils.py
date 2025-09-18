@@ -9,6 +9,7 @@ from django.db import transaction
 from datetime import timedelta, date
 from decimal import Decimal, InvalidOperation
 import logging
+from django.db import models
 
 from .models import (
     Medicine, MedicineStock, StockAlert, Prescription, 
