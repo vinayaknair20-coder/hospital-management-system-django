@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'labTech_app',
     'pharmacist_app',
     'rest_framework_simplejwt',
-    'authentication'
+    'authentication',
+    'django_filters',
 
 ]
 
@@ -151,4 +152,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+}
+
+REST_FRAMEWORK = {
+   'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ),
 }
