@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'labTech_app',
     'pharmacist_app',
     'rest_framework_simplejwt',
-    'authentication'
+    'authentication',
+    'django_filters',
 
 ]
 
@@ -162,5 +163,12 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': False,
     
     'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',)
+}
+REST_FRAMEWORK = {
+   'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ),
 }
