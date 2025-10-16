@@ -67,11 +67,6 @@ class PatientSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Emergency contact number cannot be the same as phone number.")
         return value
 
-class DoctorSerializer(serializers.ModelSerializer):
-    specialization = serializers.CharField()
-    class Meta:
-        model = Doctor
-        fields = '__all__'
 
 class AppointmentSerializer(serializers.ModelSerializer):
     def create(self, validated_data):

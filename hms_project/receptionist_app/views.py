@@ -20,9 +20,6 @@ class BillGenerationViewSet(viewsets.ModelViewSet):
     queryset = Bill_Generation.objects.all()
     serializer_class = BillGenerationSerializer
 
-class DoctorViewSet(viewsets.ModelViewSet):
-    queryset = Doctor.objects.all()
-    serializer_class = DoctorSerializer
 
     def get_queryset(self):
         queryset = Doctor.objects.all()

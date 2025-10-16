@@ -18,15 +18,6 @@ class Patient(models.Model):
     def __str__(self):
         return f"{self.Patient_id} - {self.Patient_name}"
     
-
-# Doctor model for receptionist_app
-class Doctor(models.Model):
-    doctor_id = models.AutoField(primary_key=True)
-    staff_name = models.CharField(max_length=100)
-    specialization = models.CharField(max_length=100)
-
-    def __str__(self):
-        return f"{self.doctor_id} - {self.staff_name}"
     
 class Appointment(models.Model):
     Appointment_id = models.AutoField(primary_key=True)
