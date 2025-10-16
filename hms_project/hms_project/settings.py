@@ -43,8 +43,9 @@ INSTALLED_APPS = [
     'doctor_app',
     'labTech_app',
     'pharmacist_app',
-    # 'rest_framework_simplejwt',
-    'authentication'
+    'rest_framework_simplejwt',
+    'authentication',
+    'django_filters',
 
 ]
 
@@ -144,6 +145,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+<<<<<<< HEAD
 # REST_FRAMEWORK = {
 #     'DEFAULT_AUTHENTICATION_CLASSES': (
 #         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -152,3 +154,32 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 #         'rest_framework.permissions.IsAuthenticated',
 #     ],
 # }
+=======
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+from datetime import timedelta
+
+# Add this to settings.py
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),  # 24 hours instead of 1 hour
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': False,
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',)
+}
+REST_FRAMEWORK = {
+   'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ),
+}
+>>>>>>> d0a3139415147984e556c3b9d6da1fd6eafb3b64
