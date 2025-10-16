@@ -1,19 +1,32 @@
-
 from django.contrib import admin
-from .models import Patient,Doctor, Appointment, Bill_Generation
+from .models import Patient, Appointment, Bill_Generation
 
-# Register your models here.
-class AppointmentInline(admin.TabularInline):
-	model = Appointment
-	extra = 1
 
+@admin.register(Patient)
 class PatientAdmin(admin.ModelAdmin):
-	inlines = [AppointmentInline]
+    list_display = ['Patient_id', 'Patient_name', 'Age', 'Gender', 'Blood_Group', 'Phone_number']
+    search_fields = ['Patient_name', 'Phone_number', 'Email']
 
-admin.site.register(Patient, PatientAdmin)
-# admin.site.register(Doctor)
-admin.site.register(Appointment)
+
+@admin.register(Appointment)
+class AppointmentAdmin(admin.ModelAdmin):
+    list_display = ['Appointment_id', 'get_patient_name', 'get_doctor_name', 'Appointment_date', 'status']
+    list_filter = ['status', 'Appointment_date']
+    
+    def get_patient_name(self, obj):
+        return obj.Patient_id.Patient_name
+    get_patient_name.short_description = 'Patient'
+    
+    def get_doctor_name(self, obj):
+        return obj.doctor_id.staff_name
+    get_doctor_name.short_description = 'Doctor'
+
+
+@admin.register(Bill_Generation)
 class BillGenerationAdmin(admin.ModelAdmin):
-	readonly_fields = ('Token',)
-
-admin.site.register(Bill_Generation, BillGenerationAdmin)
+    list_display = ['Bill_id', 'Token', 'get_patient_name', 'Amount', 'Billing_date']
+    readonly_fields = ['Token', 'Billing_date']
+    
+    def get_patient_name(self, obj):
+        return obj.Patient_id.Patient_name
+    get_patient_name.short_description = 'Patient'
