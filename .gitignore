@@ -1,6 +1,5 @@
-
 # Python
-_pycache_/
+__pycache__/
 *.py[cod]
 *.pyo
 *.pyd
@@ -11,19 +10,26 @@ db.sqlite3
 media/
 staticfiles/
 
-# Django migrations except _init_.py
-/migrations/.py
-!*/migrations/_init_.py
-
 # Virtual Environment
 myvenv/
+venv/
+env/
 
-# Environment variables
+# Environment Variables
 .env
 *.env
 
-# IDE / Editor
+# IDE
 .vscode/
 .idea/
 
+# OS Files
+.DS_Store
+Thumbs.db
 
+# Temporary Files
+*.tmp
+*.bak
+*.swp
+debug.log
+"hms_project/git/" 
