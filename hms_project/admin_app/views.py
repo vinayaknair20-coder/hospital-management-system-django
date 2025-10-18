@@ -45,7 +45,7 @@ def create_login_log(username, log_type, message, ip_address, success=True):
 
 # ============ AUTHENTICATION VIEWS ============
 @api_view(['POST'])
-    @permission_classes([AllowAny])
+@permission_classes([AllowAny])
 def login_view(request):
     """Staff Login with JWT authentication"""
     try:
@@ -134,7 +134,7 @@ def login_view(request):
 
 
 @api_view(['POST'])
-    @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def logout_view(request):
     """Staff Logout"""
     try:
