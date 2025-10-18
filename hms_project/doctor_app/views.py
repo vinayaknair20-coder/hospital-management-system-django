@@ -1,51 +1,157 @@
-from rest_framework import viewsets, filters
+# doctor_app/views.py - COMPLETE FILE
+"""
+Doctor App Views
+Consultation and Prescription Management
+"""
+
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
-from .models import Consultation, Prescription, MedicinePrescription, TestPrescription
-from .serializers import (ConsultationSerializer, PrescriptionSerializer, 
-                          MedicinePrescriptionSerializer, TestPrescriptionSerializer)
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.db.models import Count, Q
+from datetime import datetime, timedelta
+
+from .models import (
+    Consultation,
+    Prescription,
+    MedicinePrescription,
+    TestPrescription
+)
+from .serializers import (
+    ConsultationSerializer,
+    PrescriptionSerializer,
+    MedicinePrescriptionSerializer,
+    TestPrescriptionSerializer
+)
+from admin_app.permissions import IsDoctor
+from receptionist_app.models import Appointment
+from admin_app.models import Staff
 
 
 class ConsultationViewSet(viewsets.ModelViewSet):
-    queryset = Consultation.objects.all()
-    serializer_class = ConsultationSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['appointment__doctor_id', 'appointment__Patient_id']
-    search_fields = ['symptoms', 'diagnosis', 'appointment__Patient_id__Patient_name']
-    ordering = ['-consultation_date']
+    """Consultation Management ViewSet"""
+    queryset = Consultation.objects.select_related(
+        'appointment',
+        'patient',
+        'doctor'
+    )
+    serializer_class = ConsultationSerializer    # 
+    permission_classes = [IsAuthenticated]  # ✅ Added authentication  # COMMENTED FOR TESTING
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filter by doctor if user is a doctor
+        if hasattr(self.request.user, 'role') and self.request.user.role == 'DOCTOR':
+            queryset = queryset.filter(doctor=self.request.user)
+        
+        return queryset
     
     @action(detail=False, methods=['get'])
-    def by_doctor(self, request):
-        """Get consultations by doctor ID"""
-        doctor_id = request.query_params.get('doctor_id')
-        if not doctor_id:
-            return Response({'error': 'doctor_id parameter required'}, status=400)
+    def today(self, request):
+        """Get today's consultations"""
+        today = timezone.now().date()
         
-        consultations = self.queryset.filter(appointment__doctor_id=doctor_id)
+        consultations = self.get_queryset().filter(
+            consultation_date=today
+        ).order_by('-consultation_time')
+        
         serializer = self.get_serializer(consultations, many=True)
-        return Response(serializer.data)
+        
+        return Response({
+            'date': today,
+            'count': consultations.count(),
+            'consultations': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def upcoming(self, request):
+        """Get upcoming consultations"""
+        today = timezone.now().date()
+        
+        consultations = self.get_queryset().filter(
+            consultation_date__gte=today,
+            status__in=['SCHEDULED', 'IN_PROGRESS']
+        ).order_by('consultation_date', 'consultation_time')
+        
+        serializer = self.get_serializer(consultations, many=True)
+        
+        return Response({
+            'count': consultations.count(),
+            'consultations': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def statistics(self, request):
+        """Get consultation statistics"""
+        queryset = self.get_queryset()
+        today = timezone.now().date()
+        
+        stats = {
+            'total': queryset.count(),
+            'today': queryset.filter(consultation_date=today).count(),
+            'completed': queryset.filter(status='COMPLETED').count(),
+            'pending': queryset.filter(status__in=['SCHEDULED', 'IN_PROGRESS']).count(),
+            'cancelled': queryset.filter(status='CANCELLED').count()
+        }
+        
+        return Response(stats, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """Mark consultation as completed"""
+        consultation = self.get_object()
+        consultation.status = 'COMPLETED'
+        consultation.save()
+        
+        return Response({
+            'message': 'Consultation marked as completed',
+            'consultation_id': consultation.consultation_id,
+            'status': consultation.status
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        """Cancel consultation"""
+        consultation = self.get_object()
+        consultation.status = 'CANCELLED'
+        consultation.save()
+        
+        return Response({
+            'message': 'Consultation cancelled',
+            'consultation_id': consultation.consultation_id,
+            'status': consultation.status
+        }, status=status.HTTP_200_OK)
 
 
 class PrescriptionViewSet(viewsets.ModelViewSet):
-    queryset = Prescription.objects.all()
-    serializer_class = PrescriptionSerializer
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['consultation']
-    ordering = ['-prescription_date']
+    """Prescription Management ViewSet"""
+    queryset = Prescription.objects.select_related(
+        'consultation',
+        'patient',
+        'doctor'
+    )
+    serializer_class = PrescriptionSerializer    # 
+    permission_classes = [IsAuthenticated]  # ✅ Added authentication  # COMMENTED FOR TESTING
 
 
 class MedicinePrescriptionViewSet(viewsets.ModelViewSet):
-    queryset = MedicinePrescription.objects.all()
-    serializer_class = MedicinePrescriptionSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['prescription']
-    search_fields = ['medicine_name']
+    """Medicine Prescription ViewSet"""
+    queryset = MedicinePrescription.objects.select_related(
+        'prescription',
+        'medicine'
+    )
+    serializer_class = MedicinePrescriptionSerializer    # 
+    permission_classes = [IsAuthenticated]  # ✅ Added authentication  # COMMENTED FOR TESTING
 
 
 class TestPrescriptionViewSet(viewsets.ModelViewSet):
-    queryset = TestPrescription.objects.all()
-    serializer_class = TestPrescriptionSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['prescription']
-    search_fields = ['test_name']
+    """Test Prescription ViewSet"""
+    queryset = TestPrescription.objects.select_related(
+        'prescription',
+        'lab_test'
+    )
+    serializer_class = TestPrescriptionSerializer    # 
+    permission_classes = [IsAuthenticated]  # ✅ Added authentication  # COMMENTED FOR TESTING

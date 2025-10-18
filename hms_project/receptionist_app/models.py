@@ -1,97 +1,145 @@
+# receptionist_app/models.py - COMPLETE PRODUCTION VERSION
 from django.db import models
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.core.exceptions import ValidationError
-from admin_app.models import Staff
+from django.utils import timezone
 from datetime import date
+from admin_app.models import Staff
 
-# Create your models here.
 
 class Patient(models.Model):
+    """Patient Management"""
+    
     GENDER_CHOICES = (
         ('M', 'Male'),
         ('F', 'Female'),
         ('O', 'Other'),
     )
     
-    Patient_id = models.AutoField(primary_key=True)
-    Patient_name = models.CharField(max_length=100)
-    date_of_birth = models.DateField()
-    Gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    Blood_Group = models.CharField(max_length=5)
-    Address = models.CharField(max_length=200)
-    Phone_number = models.CharField(max_length=10)
-    Email = models.EmailField(null=True, blank=True, unique=True)
-    is_active = models.BooleanField(default=True)
-
-    def clean(self):
-        # Validate phone number
-        if self.Phone_number and not self.Phone_number.isdigit():
-            raise ValidationError({'Phone_number': 'Phone number must contain only digits'})
-        if self.Phone_number and len(self.Phone_number) != 10:
-            raise ValidationError({'Phone_number': 'Phone number must be exactly 10 digits'})
-        
-        # Validate DOB
-        if self.date_of_birth and self.date_of_birth >= date.today():
-            raise ValidationError({'date_of_birth': 'Date of birth must be in the past'})
+    BLOOD_GROUP_CHOICES = (
+        ('A+', 'A+'), ('A-', 'A-'),
+        ('B+', 'B+'), ('B-', 'B-'),
+        ('O+', 'O+'), ('O-', 'O-'),
+        ('AB+', 'AB+'), ('AB-', 'AB-'),
+    )
     
-    @property
-    def Age(self):
-        """Calculate age from date of birth"""
-        if self.date_of_birth:
-            today = date.today()
-            return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
-        return None
-
+    Patient_id = models.AutoField(primary_key=True)
+    Patient_name = models.CharField(max_length=200)
+    Date_of_Birth = models.DateField()
+    Gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
+    Blood_Group = models.CharField(max_length=3, choices=BLOOD_GROUP_CHOICES, blank=True)
+    Phone_number = models.CharField(max_length=10)
+    Email = models.EmailField(blank=True)
+    Address = models.TextField()
+    Emergency_Contact = models.CharField(max_length=10)
+    Medical_History = models.TextField(blank=True)
+    Allergies = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    registered_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, related_name='registered_patients')
+    registration_date = models.DateField(default=timezone.now)
+    
+    def clean(self):
+        if self.Phone_number and len(self.Phone_number) != 10:
+            raise ValidationError({'Phone_number': 'Must be 10 digits'})
+        if self.Emergency_Contact and len(self.Emergency_Contact) != 10:
+            raise ValidationError({'Emergency_Contact': 'Must be 10 digits'})
+        if self.Date_of_Birth and self.Date_of_Birth >= date.today():
+            raise ValidationError({'Date_of_Birth': 'Must be in the past'})
+    
     def __str__(self):
-        return f"{self.Patient_id} - {self.Patient_name}"
+        return f"{self.Patient_name} - {self.Patient_id}"
     
     class Meta:
-        db_table = 'receptionist_patient'
+        db_table = 'receptionist_patients'
+        ordering = ['Patient_name']
+        indexes = [
+            models.Index(fields=['Phone_number']),
+            models.Index(fields=['is_active']),
+        ]
 
 
 class Appointment(models.Model):
-    Appointment_id = models.AutoField(primary_key=True)
-    Patient_id = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='appointments')
-    doctor_id = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='doctor_appointments')
-    Appointment_date = models.DateField()
-    Appointment_time = models.TimeField(auto_now_add=True)
+    """Appointment Scheduling"""
     
-    Status_choices = (
-        ("booked", "Booked"),
-        ("cancelled", "Cancelled"),
-        ("completed", "Completed")
-    )
-    status = models.CharField(max_length=20, choices=Status_choices, default="booked")
-
+    STATUS_CHOICES = [
+        ('SCHEDULED', 'Scheduled'),
+        ('CONFIRMED', 'Confirmed'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
+        ('NO_SHOW', 'No Show'),
+    ]
+    
+    appointment_id = models.AutoField(primary_key=True)
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='appointments')
+    doctor = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='appointments', limit_choices_to={'role': 'DOCTOR'})
+    appointment_date = models.DateField()
+    appointment_time = models.TimeField()
+    token_number = models.IntegerField()
+    reason = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SCHEDULED')
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, related_name='created_appointments')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
     def __str__(self):
-        return f"Appointment {self.Appointment_id} - {self.Patient_id.Patient_name}"
+        return f"Appointment #{self.appointment_id} - {self.patient.Patient_name}"
     
     class Meta:
-        db_table = 'receptionist_appointment'
+        db_table = 'receptionist_appointments'
+        ordering = ['-appointment_date', '-appointment_time']
+        unique_together = [['doctor', 'appointment_date', 'token_number']]
+        indexes = [
+            models.Index(fields=['appointment_date', 'status']),
+            models.Index(fields=['doctor', 'appointment_date']),
+        ]
 
 
-class Bill_Generation(models.Model):
-    Bill_id = models.AutoField(primary_key=True)
-    Patient_id = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='bills')
-    Appointment_id = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name='bills')
-    Amount = models.DecimalField(max_digits=10, decimal_places=2)
-    Billing_date = models.DateField(auto_now_add=True)
-    Token = models.CharField(max_length=20, unique=True, blank=True, null=True)
-
+class BillGeneration(models.Model):
+    """Billing Management"""
+    
+    PAYMENT_STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('PAID', 'Paid'),
+        ('PARTIAL', 'Partial'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+    
+    PAYMENT_METHOD_CHOICES = [
+        ('CASH', 'Cash'),
+        ('CARD', 'Card'),
+        ('UPI', 'UPI'),
+        ('INSURANCE', 'Insurance'),
+    ]
+    
+    bill_id = models.AutoField(primary_key=True)
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='bills')
+    bill_date = models.DateField(default=timezone.now)
+    consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    medicine_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    lab_test_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    other_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, blank=True)
+    generated_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, related_name='generated_bills')
+    
+    def save(self, *args, **kwargs):
+        # Auto-calculate total
+        self.total_amount = (
+            self.consultation_fee + 
+            self.medicine_cost + 
+            self.lab_test_cost + 
+            self.other_charges - 
+            self.discount
+        )
+        super().save(*args, **kwargs)
+    
     def __str__(self):
-        return f"Bill {self.Bill_id} - Token: {self.Token}"
+        return f"Bill #{self.bill_id} - {self.patient.Patient_name}"
     
     class Meta:
-        db_table = 'receptionist_bill_generation'
+        db_table = 'receptionist_bills'
+        ordering = ['-bill_date']
+# Add to receptionist_app/models.py
 
-
-# SIGNAL: Auto-generate Token after Bill is created
-@receiver(post_save, sender=Bill_Generation)
-def auto_generate_token(sender, instance, created, **kwargs):
-    """Automatically generate token when bill is created"""
-    if created and not instance.Token:
-        token = f"PAT{instance.Bill_id:06d}-{instance.Patient_id.Patient_id:04d}"
-        Bill_Generation.objects.filter(pk=instance.pk).update(Token=token)
-        instance.Token = token
-        print(f"✅ Token generated: {token} for Patient: {instance.Patient_id.Patient_name}")

@@ -1,18 +1,31 @@
+# hms_project/urls.py - COMPLETE FIXED VERSION
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.http import JsonResponse
+
+def api_root(request):
+    """API Root - Welcome Page"""
+    return JsonResponse({
+        'message': 'Hospital Management System API',
+        'version': '1.0',
+        'endpoints': {
+            'admin_panel': '/admin/',
+            'admin_api': '/api/admin/',
+            'receptionist_api': '/api/receptionist/',
+            'pharmacist_api': '/api/pharmacist/',
+            'doctor_api': '/api/doctor/',
+            'lab_tech_api': '/api/lab-tech/',
+            'authentication': '/api/auth/'
+        },
+        'documentation': '/api/docs/'
+    })
 
 urlpatterns = [
+    path('', api_root, name='api-root'),  # ✅ ROOT URL
     path('admin/', admin.site.urls),
-    
-    # JWT Authentication
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    
-    # App URLs
     path('api/admin/', include('admin_app.urls')),
     path('api/receptionist/', include('receptionist_app.urls')),
-    path('api/doctor/', include('doctor_app.urls')),
     path('api/pharmacist/', include('pharmacist_app.urls')),
-    path('api/labtech/', include('labTech_app.urls')),
+    path('api/doctor/', include('doctor_app.urls')),
+    path('api/lab-tech/', include('labTech_app.urls')),
 ]

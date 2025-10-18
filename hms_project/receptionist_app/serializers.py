@@ -1,100 +1,95 @@
+# receptionist_app/serializers.py - COMPLETE FIXED VERSION
 from rest_framework import serializers
-from .models import Patient, Appointment, Bill_Generation
-from admin_app.models import Staff
-from datetime import date
+from .models import Patient, Appointment,BillGeneration
 
 
 class PatientSerializer(serializers.ModelSerializer):
-    Age = serializers.IntegerField(read_only=True)
+    """Patient Serializer"""
+    age = serializers.SerializerMethodField()
+    registered_by_name = serializers.CharField(source='registered_by.staff_name', read_only=True)
     
     class Meta:
         model = Patient
         fields = '__all__'
-        read_only_fields = ['Patient_id', 'Age']
+        read_only_fields = ['Patient_id', 'registration_date']
     
-    def validate_Patient_name(self, value):
-        """Name must have at least 3 characters"""
-        if len(value.strip()) < 3:
-            raise serializers.ValidationError("Patient name must have at least 3 characters")
-        return value.strip()
+    def get_age(self, obj):
+        """Calculate patient age"""
+        from datetime import date
+        if obj.Date_of_Birth:
+            today = date.today()
+            return today.year - obj.Date_of_Birth.year - (
+                (today.month, today.day) < (obj.Date_of_Birth.month, obj.Date_of_Birth.day)
+            )
+        return None
+
+
+class PatientListSerializer(serializers.ModelSerializer):
+    """Patient List Serializer (minimal fields)"""
+    age = serializers.SerializerMethodField()
     
-    def validate_Phone_number(self, value):
-        """Phone number must be exactly 10 digits"""
-        if not value.isdigit():
-            raise serializers.ValidationError("Phone number must contain only digits")
-        if len(value) != 10:
-            raise serializers.ValidationError("Phone number must be exactly 10 digits")
-        return value
+    class Meta:
+        model = Patient
+        fields = ['Patient_id', 'Patient_name', 'Phone_number', 'Gender', 'age', 'is_active']
     
-    def validate_Gender(self, value):
-        """Gender must be M/F/O"""
-        if value not in ['M', 'F', 'O']:
-            raise serializers.ValidationError("Gender must be M (Male), F (Female), or O (Other)")
-        return value
-    
-    def validate_date_of_birth(self, value):
-        """DOB must be in past"""
-        if value >= date.today():
-            raise serializers.ValidationError("Date of birth must be in the past")
-        return value
+    def get_age(self, obj):
+        from datetime import date
+        if obj.Date_of_Birth:
+            today = date.today()
+            return today.year - obj.Date_of_Birth.year
+        return None
 
 
 class PatientUpdateSerializer(serializers.ModelSerializer):
-    """Only allow editing Name and Address"""
+    """Patient Update Serializer"""
     class Meta:
         model = Patient
-        fields = ['Patient_name', 'Address', 'Phone_number']
-    
-    def validate_Patient_name(self, value):
-        if len(value.strip()) < 3:
-            raise serializers.ValidationError("Patient name must have at least 3 characters")
-        return value.strip()
-    
-    def validate_Phone_number(self, value):
-        if not value.isdigit() or len(value) != 10:
-            raise serializers.ValidationError("Phone number must be exactly 10 digits")
-        return value
-
-
-class DoctorSerializer(serializers.ModelSerializer):
-    specialization_name = serializers.CharField(source='specialization.specialization_name', read_only=True)
-    
-    class Meta:
-        model = Staff
-        fields = ['staff_id', 'staff_name', 'specialization', 'specialization_name', 'Phone_number', 'Email']
+        fields = '__all__'
+        read_only_fields = ['Patient_id', 'registration_date', 'registered_by']
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    patient_name = serializers.CharField(source='Patient_id.Patient_name', read_only=True)
-    doctor_name = serializers.CharField(source='doctor_id.staff_name', read_only=True)
-    patient_phone = serializers.CharField(source='Patient_id.Phone_number', read_only=True)
-    doctor_specialization = serializers.CharField(source='doctor_id.specialization.specialization_name', read_only=True)
+    """Appointment Serializer with nested data"""
+    patient_name = serializers.CharField(source='patient.Patient_name', read_only=True)
+    patient_phone = serializers.CharField(source='patient.Phone_number', read_only=True)
+    doctor_name = serializers.CharField(source='doctor.staff_name', read_only=True)
+    doctor_specialization = serializers.CharField(source='doctor.specialization.specialization_name', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.staff_name', read_only=True)
     
     class Meta:
         model = Appointment
         fields = '__all__'
-        read_only_fields = ['Appointment_id', 'Appointment_time']
+        read_only_fields = ['appointment_id', 'created_at']
+
+
+class AppointmentListSerializer(serializers.ModelSerializer):
+    """Appointment List Serializer (minimal fields)"""
+    patient_name = serializers.CharField(source='patient.Patient_name', read_only=True)
+    doctor_name = serializers.CharField(source='doctor.staff_name', read_only=True)
     
-    def validate_Appointment_date(self, value):
-        """Appointment date cannot be in the past"""
-        if value < date.today():
-            raise serializers.ValidationError("Appointment date cannot be in the past")
-        return value
+    class Meta:
+        model = Appointment
+        fields = [
+            'appointment_id', 'patient', 'patient_name', 'doctor', 
+            'doctor_name', 'appointment_date', 'appointment_time', 
+            'token_number', 'status'
+        ]
 
 
 class BillGenerationSerializer(serializers.ModelSerializer):
-    patient_name = serializers.CharField(source='Patient_id.Patient_name', read_only=True)
-    patient_phone = serializers.CharField(source='Patient_id.Phone_number', read_only=True)
-    appointment_date = serializers.DateField(source='Appointment_id.Appointment_date', read_only=True)
-    doctor_name = serializers.CharField(source='Appointment_id.doctor_id.staff_name', read_only=True)
+    """Bill Generation Serializer"""
+    patient_name = serializers.CharField(source='patient.Patient_name', read_only=True)
+    patient_phone = serializers.CharField(source='patient.Phone_number', read_only=True)
+    generated_by_name = serializers.CharField(source='generated_by.staff_name', read_only=True)
+    balance = serializers.SerializerMethodField()
     
     class Meta:
-        model = Bill_Generation
+        model = BillGeneration
         fields = '__all__'
-        read_only_fields = ['Bill_id', 'Billing_date', 'Token']
+        read_only_fields = ['bill_id', 'total_amount']
     
-    def validate_Amount(self, value):
-        """Amount must be positive"""
-        if value <= 0:
-            raise serializers.ValidationError("Amount must be greater than 0")
-        return value
+    def get_balance(self, obj):
+        """Calculate remaining balance"""
+        return obj.total_amount - obj.amount_paid
+# Add to receptionist_app/serializers.py
+

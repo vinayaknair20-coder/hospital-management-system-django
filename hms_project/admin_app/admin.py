@@ -1,37 +1,42 @@
+# admin_app/admin.py - COMPLETE VERSION
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
-from .models import Staff, Specialization
+from .models import Staff, Specialization, LoginLog
 
 
 @admin.register(Specialization)
 class SpecializationAdmin(admin.ModelAdmin):
     list_display = ['specialization_id', 'specialization_name', 'is_active']
-    search_fields = ['specialization_name']
     list_filter = ['is_active']
+    search_fields = ['specialization_name']
 
 
 @admin.register(Staff)
-class StaffAdmin(UserAdmin):
-    list_display = ['staff_id', 'staff_name', 'Email', 'role', 'Phone_number', 'is_active']
-    list_filter = ['role', 'is_active', 'specialization']
-    search_fields = ['staff_name', 'Email', 'Phone_number']
-    ordering = ['staff_name']
+class StaffAdmin(admin.ModelAdmin):
+    list_display = ['staff_id', 'staff_name', 'username', 'role', 'Email', 'is_active']
+    list_filter = ['role', 'is_active', 'gender']
+    search_fields = ['staff_name', 'username', 'Email']
+    readonly_fields = ['staff_id', 'failed_login_attempts', 'locked_until']
     
     fieldsets = (
-        ('Personal Info', {
-            'fields': ('staff_name', 'Email', 'gender', 'date_of_birth', 'Phone_number', 'address')
+        ('Basic Info', {
+            'fields': ('staff_id', 'staff_name', 'username', 'password')
         }),
-        ('Work Info', {
-            'fields': ('role', 'specialization', 'joining_date', 'salary')
+        ('Personal Details', {
+            'fields': ('gender', 'date_of_birth', 'address', 'Phone_number', 'Email')
         }),
-        ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')
+        ('Employment', {
+            'fields': ('role', 'specialization', 'salary', 'joining_date', 'is_active')
         }),
-    )
-    
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('Email', 'staff_name', 'role', 'password1', 'password2', 'Phone_number'),
+        ('Security', {
+            'fields': ('failed_login_attempts', 'locked_until')
         }),
     )
+
+
+@admin.register(LoginLog)
+class LoginLogAdmin(admin.ModelAdmin):
+    list_display = ['log_id', 'username', 'log_type', 'ip_address', 'timestamp', 'success']
+    list_filter = ['log_type', 'success', 'timestamp']
+    search_fields = ['username', 'ip_address']
+    readonly_fields = ['log_id', 'timestamp']
+    date_hierarchy = 'timestamp'

@@ -1,22 +1,19 @@
+# labTech_app/admin.py - COMPLETE VERSION
 from django.contrib import admin
 from .models import LabTest, TestResult
 
 
 @admin.register(LabTest)
 class LabTestAdmin(admin.ModelAdmin):
-    list_display = ['test_id', 'test_name', 'test_cost']
+    list_display = ['test_id', 'test_name', 'price', 'sample_type', 'is_active']
+    list_filter = ['is_active', 'sample_type']
     search_fields = ['test_name']
+    readonly_fields = ['test_id', 'created_at']
 
 
 @admin.register(TestResult)
 class TestResultAdmin(admin.ModelAdmin):
-    list_display = ['result_id', 'get_patient_name', 'get_test_name', 'test_date', 'status']
-    list_filter = ['status', 'test_date']
-    
-    def get_patient_name(self, obj):
-        return obj.patient.Patient_name
-    get_patient_name.short_description = 'Patient'
-    
-    def get_test_name(self, obj):
-        return obj.test.test_name
-    get_test_name.short_description = 'Test'
+    list_display = ['result_id', 'patient', 'lab_test', 'test_date', 'result_status', 'is_normal']
+    list_filter = ['result_status', 'is_normal', 'test_date']
+    search_fields = ['patient__Patient_name', 'lab_test__test_name']
+    readonly_fields = ['result_id', 'created_at', 'updated_at']
