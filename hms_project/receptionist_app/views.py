@@ -10,27 +10,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-<<<<<<< HEAD
-from django.utils import timezone
-from decimal import Decimal
-
-# Import all models
-from .models import Patient, Appointment,BillGeneration
-
-# Import all serializers
-from .serializers import (
-    PatientSerializer,
-    AppointmentSerializer,
-    BillGenerationSerializer
-)
-
-=======
 from .models import Patient, Appointment, Bill_Generation
 from .serializers import (
     PatientSerializer, PatientUpdateSerializer,
     AppointmentSerializer, BillGenerationSerializer, DoctorSerializer
 )
->>>>>>> albitta
 from admin_app.models import Staff
 
 
