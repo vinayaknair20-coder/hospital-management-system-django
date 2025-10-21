@@ -1,3 +1,5 @@
+# admin_app/permissions.py - CORRECTED VERSION
+
 from rest_framework.permissions import BasePermission
 from .models import Staff
 
@@ -7,8 +9,8 @@ class IsAdmin(BasePermission):
     def has_permission(self, request, view):
         return (
             request.user.is_authenticated
-            and hasattr(request.user, "staff")
-            and request.user.staff.role == Staff.Roles.ADMIN
+            and hasattr(request.user, "role")  # ✅ Check 'role' directly
+            and request.user.role == Staff.Roles.ADMIN  # ✅ No .staff needed
         )
 
 
@@ -17,8 +19,8 @@ class IsDoctor(BasePermission):
     def has_permission(self, request, view):
         return (
             request.user.is_authenticated
-            and hasattr(request.user, "staff")
-            and request.user.staff.role == Staff.Roles.DOCTOR
+            and hasattr(request.user, "role")
+            and request.user.role == Staff.Roles.DOCTOR
         )
 
 
@@ -27,8 +29,8 @@ class IsReceptionist(BasePermission):
     def has_permission(self, request, view):
         return (
             request.user.is_authenticated
-            and hasattr(request.user, "staff")
-            and request.user.staff.role == Staff.Roles.RECEPTIONIST
+            and hasattr(request.user, "role")
+            and request.user.role == Staff.Roles.RECEPTIONIST
         )
 
 
@@ -37,8 +39,8 @@ class IsPharmacist(BasePermission):
     def has_permission(self, request, view):
         return (
             request.user.is_authenticated
-            and hasattr(request.user, "staff")
-            and request.user.staff.role == Staff.Roles.PHARMACIST
+            and hasattr(request.user, "role")  # ✅ CHANGED THIS
+            and request.user.role == Staff.Roles.PHARMACIST  # ✅ CHANGED THIS
         )
 
 
@@ -47,6 +49,6 @@ class IsLabTechnician(BasePermission):
     def has_permission(self, request, view):
         return (
             request.user.is_authenticated
-            and hasattr(request.user, "staff")
-            and request.user.staff.role == Staff.Roles.LAB_TECHNICIAN
+            and hasattr(request.user, "role")
+            and request.user.role == Staff.Roles.LAB_TECHNICIAN
         )
