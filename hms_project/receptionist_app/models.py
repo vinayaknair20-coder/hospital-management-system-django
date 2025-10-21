@@ -79,19 +79,22 @@ class Bill_Generation(models.Model):
     Billing_date = models.DateField(auto_now_add=True)
     Token = models.CharField(max_length=20, unique=True, blank=True, null=True)
 
+    def save(self, *args, **kwargs):
+        # Generate Token before saving if not already set
+        if not self.Token:
+            last_bill = Bill_Generation.objects.last()
+            if last_bill:
+                # Extract last numeric part and increment
+                last_number = int(last_bill.Token.replace("PAT", "")) if last_bill.Token.startswith("PAT") else 100
+                new_number = last_number + 1
+            else:
+                new_number = 101  # Start from PAT101
+            self.Token = f"PAT{new_number}"
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Bill {self.Bill_id} - Token: {self.Token}"
-    
+
     class Meta:
         db_table = 'receptionist_bill_generation'
 
-
-# SIGNAL: Auto-generate Token after Bill is created
-@receiver(post_save, sender=Bill_Generation)
-def auto_generate_token(sender, instance, created, **kwargs):
-    """Automatically generate token when bill is created"""
-    if created and not instance.Token:
-        token = f"PAT{instance.Bill_id:06d}-{instance.Patient_id.Patient_id:04d}"
-        Bill_Generation.objects.filter(pk=instance.pk).update(Token=token)
-        instance.Token = token
-        print(f"✅ Token generated: {token} for Patient: {instance.Patient_id.Patient_name}")

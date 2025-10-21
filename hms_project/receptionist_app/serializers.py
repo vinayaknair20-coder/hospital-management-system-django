@@ -65,21 +65,43 @@ class DoctorSerializer(serializers.ModelSerializer):
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
+    Appointment_id = serializers.IntegerField(read_only=True)
     patient_name = serializers.CharField(source='Patient_id.Patient_name', read_only=True)
-    doctor_name = serializers.CharField(source='doctor_id.staff_name', read_only=True)
-    patient_phone = serializers.CharField(source='Patient_id.Phone_number', read_only=True)
-    doctor_specialization = serializers.CharField(source='doctor_id.specialization.specialization_name', read_only=True)
+    doctor = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = Appointment
-        fields = '__all__'
-        read_only_fields = ['Appointment_id', 'Appointment_time']
-    
-    def validate_Appointment_date(self, value):
-        """Appointment date cannot be in the past"""
-        if value < date.today():
-            raise serializers.ValidationError("Appointment date cannot be in the past")
-        return value
+        fields = [
+            'Appointment_id',
+            'Patient_id',
+            'doctor_id',
+            'patient_name',
+            'doctor',
+            'Appointment_date',
+            'Appointment_time',
+            'status'
+        ]
+        read_only_fields = ['Appointment_id', 'patient_name', 'doctor']
+
+    def get_doctor(self, obj):
+        if obj.doctor_id:
+            return {
+                'doctor_id': obj.doctor_id.staff_id,
+                'doctor_name': obj.doctor_id.staff_name,
+                'specialization': getattr(obj.doctor_id.specialization, 'specialization_name', None)
+            }
+        return None
+
+    def create(self, validated_data):
+        patient = validated_data.pop('Patient_id')
+        doctor = validated_data.pop('doctor_id')
+        appointment = Appointment.objects.create(
+            Patient_id=patient,
+            doctor_id=doctor,
+            **validated_data
+        )
+        return appointment
+
 
 
 class BillGenerationSerializer(serializers.ModelSerializer):
@@ -90,7 +112,7 @@ class BillGenerationSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Bill_Generation
-        fields = '__all__'
+        fields = ['Bill_id', 'Appointment_id', 'Patient_id', 'patient_name', 'patient_phone', 'appointment_date', 'doctor_name', 'Amount', 'Billing_date', 'Token']
         read_only_fields = ['Bill_id', 'Billing_date', 'Token']
     
     def validate_Amount(self, value):

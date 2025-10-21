@@ -92,9 +92,9 @@ WSGI_APPLICATION = 'hms_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'hms_db1',
+        'NAME': 'hms_db4',
         'USER': 'root',
-        'PASSWORD': 'faith',
+        'PASSWORD': 'faithinfotech',
         'HOST': 'localhost',
         'PORT': 3306
     }

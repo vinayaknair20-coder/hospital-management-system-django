@@ -3,8 +3,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Patient, Appointment, Bill_Generation
-from .serializers import (PatientSerializer, PatientUpdateSerializer, 
-                          AppointmentSerializer, BillGenerationSerializer, DoctorSerializer)
+from .serializers import (
+    PatientSerializer, PatientUpdateSerializer,
+    AppointmentSerializer, BillGenerationSerializer, DoctorSerializer
+)
 from admin_app.models import Staff
 
 
@@ -71,7 +73,11 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     search_fields = ['Patient_id__Patient_name', 'doctor_id__staff_name']
     ordering_fields = ['Appointment_date', 'Appointment_time']
     ordering = ['-Appointment_date']
-    
+
+    # ✅ Use only AppointmentSerializer (since it handles creation too)
+    def get_serializer_class(self):
+        return AppointmentSerializer
+
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         """Cancel an appointment"""
