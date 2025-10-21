@@ -83,7 +83,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'hms_db2',
         'USER': 'root',
-        'PASSWORD': 'faith',
+        'PASSWORD': 'faithinfotech',
         'HOST': 'localhost',
         'PORT': 3306,
         'OPTIONS': {

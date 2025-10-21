@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+<<<<<<< HEAD
 from django.utils import timezone
 from decimal import Decimal
 
@@ -23,6 +24,13 @@ from .serializers import (
     BillGenerationSerializer
 )
 
+=======
+from .models import Patient, Appointment, Bill_Generation
+from .serializers import (
+    PatientSerializer, PatientUpdateSerializer,
+    AppointmentSerializer, BillGenerationSerializer, DoctorSerializer
+)
+>>>>>>> albitta
 from admin_app.models import Staff
 
 
@@ -90,15 +98,55 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]  # ✅ Added authentication  # COMMENTED FOR TESTING
     
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'appointment_date', 'doctor']
-    search_fields = ['patient__Patient_name', 'doctor__staff_name']
-    ordering = ['-appointment_date', '-appointment_time']
+    filterset_fields = ['status', 'Appointment_date', 'doctor_id']
+    search_fields = ['Patient_id__Patient_name', 'doctor_id__staff_name']
+    ordering_fields = ['Appointment_date', 'Appointment_time']
+    ordering = ['-Appointment_date']
+
+    # ✅ Use only AppointmentSerializer (since it handles creation too)
+    def get_serializer_class(self):
+        return AppointmentSerializer
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        """Cancel an appointment"""
+        appointment = self.get_object()
+        if appointment.status == 'completed':
+            return Response(
+                {'error': 'Cannot cancel completed appointment'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        appointment.status = 'cancelled'
+        appointment.save()
+        return Response({'message': 'Appointment cancelled successfully'})
     
-    @action(detail=False, methods=['get'])
-    def today(self, request):
-        """Get today's appointments"""
-        from datetime import date
-        today = date.today()
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """Mark appointment as completed"""
+        appointment = self.get_object()
+        if appointment.status == 'cancelled':
+            return Response(
+                {'error': 'Cannot complete cancelled appointment'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        appointment.status = 'completed'
+        appointment.save()
+        return Response({'message': 'Appointment marked as completed'})
+
+
+class BillGenerationViewSet(viewsets.ModelViewSet):
+    queryset = Bill_Generation.objects.all()
+    serializer_class = BillGenerationSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['Patient_id', 'Appointment_id']
+    search_fields = ['Token', 'Patient_id__Patient_name']
+    
+    @action(detail=False, methods=['get'], url_path='search-token')
+    def search_by_token(self, request):
+        """Search bill by token"""
+        token = request.query_params.get('token', None)
+        if not token:
+            return Response({'error': 'Token required'}, status=status.HTTP_400_BAD_REQUEST)
         
         appointments = Appointment.objects.filter(appointment_date=today)
         serializer = self.get_serializer(appointments, many=True)

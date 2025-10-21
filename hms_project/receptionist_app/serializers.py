@@ -49,31 +49,43 @@ class PatientUpdateSerializer(serializers.ModelSerializer):
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    """Appointment Serializer with nested data"""
-    patient_name = serializers.CharField(source='patient.Patient_name', read_only=True)
-    patient_phone = serializers.CharField(source='patient.Phone_number', read_only=True)
-    doctor_name = serializers.CharField(source='doctor.staff_name', read_only=True)
-    doctor_specialization = serializers.CharField(source='doctor.specialization.specialization_name', read_only=True)
-    created_by_name = serializers.CharField(source='created_by.staff_name', read_only=True)
-    
-    class Meta:
-        model = Appointment
-        fields = '__all__'
-        read_only_fields = ['appointment_id', 'created_at']
-
-
-class AppointmentListSerializer(serializers.ModelSerializer):
-    """Appointment List Serializer (minimal fields)"""
-    patient_name = serializers.CharField(source='patient.Patient_name', read_only=True)
-    doctor_name = serializers.CharField(source='doctor.staff_name', read_only=True)
+    Appointment_id = serializers.IntegerField(read_only=True)
+    patient_name = serializers.CharField(source='Patient_id.Patient_name', read_only=True)
+    doctor = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = Appointment
         fields = [
-            'appointment_id', 'patient', 'patient_name', 'doctor', 
-            'doctor_name', 'appointment_date', 'appointment_time', 
-            'token_number', 'status'
+            'Appointment_id',
+            'Patient_id',
+            'doctor_id',
+            'patient_name',
+            'doctor',
+            'Appointment_date',
+            'Appointment_time',
+            'status'
         ]
+        read_only_fields = ['Appointment_id', 'patient_name', 'doctor']
+
+    def get_doctor(self, obj):
+        if obj.doctor_id:
+            return {
+                'doctor_id': obj.doctor_id.staff_id,
+                'doctor_name': obj.doctor_id.staff_name,
+                'specialization': getattr(obj.doctor_id.specialization, 'specialization_name', None)
+            }
+        return None
+
+    def create(self, validated_data):
+        patient = validated_data.pop('Patient_id')
+        doctor = validated_data.pop('doctor_id')
+        appointment = Appointment.objects.create(
+            Patient_id=patient,
+            doctor_id=doctor,
+            **validated_data
+        )
+        return appointment
+
 
 
 class BillGenerationSerializer(serializers.ModelSerializer):
@@ -84,9 +96,9 @@ class BillGenerationSerializer(serializers.ModelSerializer):
     balance = serializers.SerializerMethodField()
     
     class Meta:
-        model = BillGeneration
-        fields = '__all__'
-        read_only_fields = ['bill_id', 'total_amount']
+        model = Bill_Generation
+        fields = ['Bill_id', 'Appointment_id', 'Patient_id', 'patient_name', 'patient_phone', 'appointment_date', 'doctor_name', 'Amount', 'Billing_date', 'Token']
+        read_only_fields = ['Bill_id', 'Billing_date', 'Token']
     
     def get_balance(self, obj):
         """Calculate remaining balance"""

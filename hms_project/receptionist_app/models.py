@@ -93,51 +93,30 @@ class Appointment(models.Model):
         ]
 
 
-class BillGeneration(models.Model):
-    """Billing Management"""
-    
-    PAYMENT_STATUS_CHOICES = [
-        ('PENDING', 'Pending'),
-        ('PAID', 'Paid'),
-        ('PARTIAL', 'Partial'),
-        ('CANCELLED', 'Cancelled'),
-    ]
-    
-    PAYMENT_METHOD_CHOICES = [
-        ('CASH', 'Cash'),
-        ('CARD', 'Card'),
-        ('UPI', 'UPI'),
-        ('INSURANCE', 'Insurance'),
-    ]
-    
-    bill_id = models.AutoField(primary_key=True)
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='bills')
-    bill_date = models.DateField(default=timezone.now)
-    consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    medicine_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    lab_test_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    other_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, blank=True)
-    generated_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, related_name='generated_bills')
-    
+class Bill_Generation(models.Model):
+    Bill_id = models.AutoField(primary_key=True)
+    Patient_id = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='bills')
+    Appointment_id = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name='bills')
+    Amount = models.DecimalField(max_digits=10, decimal_places=2)
+    Billing_date = models.DateField(auto_now_add=True)
+    Token = models.CharField(max_length=20, unique=True, blank=True, null=True)
+
     def save(self, *args, **kwargs):
-        # Auto-calculate total
-        self.total_amount = (
-            self.consultation_fee + 
-            self.medicine_cost + 
-            self.lab_test_cost + 
-            self.other_charges - 
-            self.discount
-        )
+        # Generate Token before saving if not already set
+        if not self.Token:
+            last_bill = Bill_Generation.objects.last()
+            if last_bill:
+                # Extract last numeric part and increment
+                last_number = int(last_bill.Token.replace("PAT", "")) if last_bill.Token.startswith("PAT") else 100
+                new_number = last_number + 1
+            else:
+                new_number = 101  # Start from PAT101
+            self.Token = f"PAT{new_number}"
         super().save(*args, **kwargs)
-    
+
     def __str__(self):
-        return f"Bill #{self.bill_id} - {self.patient.Patient_name}"
-    
+        return f"Bill {self.Bill_id} - Token: {self.Token}"
+
     class Meta:
         db_table = 'receptionist_bills'
         ordering = ['-bill_date']
