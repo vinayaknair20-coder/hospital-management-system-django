@@ -158,3 +158,45 @@ class StockMovementViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['medicine', 'movement_type', 'movement_date']
     ordering = ['-movement_date', '-movement_time']
+
+
+# Add these imports at the top
+from rest_framework.decorators import api_view, permission_classes
+
+# Add these two functions at the BOTTOM of views.py
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard_stats(request):
+    """Get dashboard statistics for pharmacist"""
+    # Count from your actual models
+    total_medicines = Medicine.objects.filter(is_active=True).count()
+    low_stock_items = Medicine.objects.filter(
+        quantity_in_stock__lte=F('reorder_level'),
+        is_active=True
+    ).count()
+    
+    today = date.today()
+    three_months = today + timedelta(days=90)
+    expiring_medicines = MedicineBatch.objects.filter(
+        expiry_date__lte=three_months,
+        expiry_date__gte=today,
+        is_active=True
+    ).count()
+    
+    stats = {
+        'totalMedicines': total_medicines,
+        'pendingPrescriptions': 0,  # You'll add this when you create prescriptions model
+        'lowStockItems': low_stock_items,
+        'expiringMedicines': expiring_medicines
+    }
+    return Response(stats, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def prescription_list(request):
+    """Get list of prescriptions (placeholder)"""
+    # For now, return empty list - add prescription model later
+    prescriptions = []
+    return Response(prescriptions, status=status.HTTP_200_OK)

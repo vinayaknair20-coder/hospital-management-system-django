@@ -1,4 +1,5 @@
 # hms_project/urls.py - COMPLETE FIXED VERSION
+
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
@@ -21,8 +22,13 @@ def api_root(request):
     })
 
 urlpatterns = [
-    path('', api_root, name='api-root'),  # ✅ ROOT URL
+    path('', api_root, name='api-root'),
     path('admin/', admin.site.urls),
+    
+    # Authentication (uses admin_app login)
+    path('api/auth/', include('admin_app.urls')),  # ← ADD THIS
+    
+    # API endpoints
     path('api/admin/', include('admin_app.urls')),
     path('api/receptionist/', include('receptionist_app.urls')),
     path('api/pharmacist/', include('pharmacist_app.urls')),
